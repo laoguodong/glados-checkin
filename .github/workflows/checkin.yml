@@ -2,10 +2,8 @@ name: GLaDOS 2026 Checkin
 
 on:
   schedule:
-    # 北京时间 9:30 (UTC 1:30)
-    - cron: '30 1 * * *'
-    # 北京时间 21:30 (UTC 13:30)
-    - cron: '30 13 * * *'
+    # 每日北京时间 10:00（UTC 02:00）触发；任务内随机延迟 0–120 分钟后签到。
+    - cron: '0 2 * * *'
   workflow_dispatch:  # 允许手动触发
   push:
     branches: [main]  # 推送时也触发，保持活跃
@@ -13,7 +11,8 @@ on:
 jobs:
   checkin:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # 允许最长 2 小时随机延迟，加上依赖安装与签到执行余量。
+    timeout-minutes: 140
 
     steps:
       - name: Checkout
@@ -27,6 +26,16 @@ jobs:
 
       - name: Install Dependencies
         run: pip install -r requirements.txt
+
+      - name: Randomize check-in time
+        if: github.event_name == 'schedule'
+        shell: bash
+        run: |
+          delay_seconds=$(( RANDOM * 60 + RANDOM % 60 ))
+          delay_minutes=$(( delay_seconds / 60 ))
+          delay_seconds=$(( delay_seconds % 60 ))
+          echo "Scheduled run: delaying check-in by ${delay_minutes}m ${delay_seconds}s (range: 0–120 minutes)."
+          sleep "$(( delay_minutes * 60 + delay_seconds ))"
 
       - name: Run Checkin
         run: python checkin.py
