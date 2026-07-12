@@ -2,8 +2,9 @@ name: GLaDOS 2026 Checkin
 
 on:
   schedule:
-    # 每日北京时间 10:00（UTC 02:00）触发；任务内随机延迟 0–120 分钟后签到。
-    - cron: '0 2 * * *'
+    # 每日北京时间 09:17（UTC 01:17）启动，避开 GitHub Actions 整点调度高峰。
+    # 任务内随机等待 43–163 分钟，实际签到窗口保持在北京时间 10:00–12:00。
+    - cron: '17 1 * * *'
   workflow_dispatch:  # 允许手动触发
   push:
     branches: [main]  # 推送时也触发，保持活跃
@@ -11,8 +12,8 @@ on:
 jobs:
   checkin:
     runs-on: ubuntu-latest
-    # 允许最长 2 小时随机延迟，加上依赖安装与签到执行余量。
-    timeout-minutes: 140
+    # 覆盖最长 163 分钟随机延迟、依赖安装、签到与失败重试。
+    timeout-minutes: 180
 
     steps:
       - name: Checkout
@@ -33,10 +34,11 @@ jobs:
         if: github.event_name == 'schedule'
         shell: bash
         run: |
-          delay_seconds=$(( RANDOM * 60 + RANDOM % 60 ))
+          # 基准延迟 43 分钟 + 随机 0–120 分钟：实际签到窗口为北京时间 10:00–12:00。
+          delay_seconds=$(( (43 * 60) + (RANDOM % 7201) ))
           delay_minutes=$(( delay_seconds / 60 ))
           delay_seconds=$(( delay_seconds % 60 ))
-          echo "Scheduled run: delaying check-in by ${delay_minutes}m ${delay_seconds}s (range: 0–120 minutes)."
+          echo "Scheduled run: delaying check-in by ${delay_minutes}m ${delay_seconds}s (range: 43–163 minutes)."
           sleep "$(( delay_minutes * 60 + delay_seconds ))"
 
       - name: Run Checkin
